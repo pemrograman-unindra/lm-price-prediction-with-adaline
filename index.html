@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prediksi Harga Logam Mulia — Metode Adaline</title>
+  <meta name="description" content="Aplikasi prediksi harga emas (Logam Mulia) per gram menggunakan metode Adaline (Adaptive Linear Neuron) dengan data historis dari 2010 hingga sekarang." />
+  <meta name="keywords" content="adaline, prediksi harga emas, logam mulia, neural network, machine learning" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪙</text></svg>" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- ===== Header ===== -->
+    <header class="app-header">
+      <div class="app-header__icon">🪙</div>
+      <h1 class="app-header__title">Prediksi Harga Logam Mulia</h1>
+      <p class="app-header__subtitle">
+        Analisis &amp; prediksi harga emas per gram menggunakan metode
+        <strong>Adaline</strong> (Adaptive Linear Neuron)
+      </p>
+      <div class="app-header__badge">
+        <span>🧠</span> Jaringan Saraf Tiruan — Widrow-Hoff Learning Rule
+      </div>
+    </header>
+
+    <!-- ===== Data Overview Stats ===== -->
+    <section id="statsSection">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card__label">Total Data</div>
+          <div class="stat-card__value" id="totalData">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Harga Terbaru</div>
+          <div class="stat-card__value stat-card__value--gold" id="latestPrice">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Harga Terendah</div>
+          <div class="stat-card__value" id="lowestPrice">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Harga Tertinggi</div>
+          <div class="stat-card__value" id="highestPrice">—</div>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <div class="stat-card">
+          <div class="stat-card__label">Perubahan Harga (Total)</div>
+          <div class="stat-card__change" id="priceChange">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Rentang Waktu</div>
+          <div class="stat-card__value" id="dateRange" style="font-size: 0.95rem;">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Historical Price Chart ===== -->
+    <section>
+      <div class="card">
+        <div class="card__header">
+          <div class="card__icon">📈</div>
+          <div>
+            <div class="card__title">Grafik Harga Historis</div>
+            <div class="card__description">Pergerakan harga Logam Mulia per gram dari data CSV</div>
+          </div>
+        </div>
+        <div class="chart-wrapper" style="height: 380px;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Training Configuration ===== -->
+    <section>
+      <div class="card">
+        <div class="card__header">
+          <div class="card__icon">⚙️</div>
+          <div>
+            <div class="card__title">Konfigurasi Training Adaline</div>
+            <div class="card__description">Atur parameter jaringan saraf untuk proses pelatihan</div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="learningRate">Learning Rate (α)</label>
+            <input type="number" id="learningRate" value="0.01" min="0.0001" max="1" step="0.001" />
+            <span class="hint">Kecepatan belajar. Semakin kecil = lebih stabil</span>
+          </div>
+          <div class="form-group">
+            <label for="epochs">Jumlah Epoch</label>
+            <input type="number" id="epochs" value="100" min="1" max="10000" step="1" />
+            <span class="hint">Jumlah iterasi pelatihan</span>
+          </div>
+          <div class="form-group">
+            <label for="windowSize">Window Size</label>
+            <input type="number" id="windowSize" value="5" min="2" max="30" step="1" />
+            <span class="hint">Jumlah hari sebelumnya sebagai input</span>
+          </div>
+          <div class="form-group">
+            <label for="trainRatio">Rasio Data Training (%)</label>
+            <input type="number" id="trainRatio" value="80" min="50" max="95" step="5" />
+            <span class="hint">Sisanya digunakan sebagai data testing</span>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn--primary" id="btnTrain">
+            ⚡ Mulai Training
+          </button>
+          <button class="btn btn--secondary" id="btnReset">
+            🔄 Reset Model
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Training Results (hidden initially) ===== -->
+    <section id="trainingResults" class="hidden">
+      <div class="card">
+        <div class="card__header">
+          <div class="card__icon">📊</div>
+          <div>
+            <div class="card__title">Hasil Training</div>
+            <div class="card__description">Performa model Adaline setelah proses pelatihan</div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="training-status" id="trainingStatus">
+          <div class="training-status__dot" id="statusDot"></div>
+          <span>Menunggu...</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-bar__fill" id="progressFill"></div>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; font-family: 'JetBrains Mono', monospace;" id="epochInfo"></div>
+
+        <!-- Metrics -->
+        <div class="metrics-row">
+          <div class="metric-badge">
+            <span class="metric-badge__label">MSE (Testing)</span>
+            <span class="metric-badge__value" id="metricMSE">—</span>
+          </div>
+          <div class="metric-badge">
+            <span class="metric-badge__label">MAPE</span>
+            <span class="metric-badge__value" id="metricMAPE">—</span>
+          </div>
+          <div class="metric-badge">
+            <span class="metric-badge__label">Akurasi</span>
+            <span class="metric-badge__value" id="metricAccuracy">—</span>
+          </div>
+        </div>
+
+        <!-- MSE Chart -->
+        <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin: 24px 0 8px;">Konvergensi MSE per Epoch</h3>
+        <div class="chart-wrapper" style="height: 280px;">
+          <canvas id="mseChart"></canvas>
+        </div>
+
+        <!-- Comparison Chart -->
+        <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin: 24px 0 8px;">Perbandingan Harga Aktual vs Prediksi (Data Testing)</h3>
+        <div class="chart-wrapper" style="height: 320px;">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+
+        <!-- Weights Table -->
+        <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin: 24px 0 8px;">Bobot (Weights) &amp; Bias</h3>
+        <div style="overflow-x: auto;">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Nilai</th>
+              </tr>
+            </thead>
+            <tbody id="weightsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Prediction Section ===== -->
+    <section id="predictionSection" class="hidden">
+      <div class="card">
+        <div class="card__header">
+          <div class="card__icon">🔮</div>
+          <div>
+            <div class="card__title">Prediksi Harga</div>
+            <div class="card__description">Prediksi harga Logam Mulia untuk hari berikutnya</div>
+          </div>
+        </div>
+
+        <!-- Auto prediction result -->
+        <div class="prediction-result">
+          <div class="prediction-result__icon">💰</div>
+          <div class="prediction-result__content">
+            <div class="prediction-result__label">Prediksi Harga LM / gram</div>
+            <div class="prediction-result__value" id="predictionValue">—</div>
+            <div class="prediction-result__date" id="predictionDate">—</div>
+          </div>
+        </div>
+
+        <!-- Custom prediction input -->
+        <div style="margin-top: 24px;">
+          <div class="form-group">
+            <label for="predictionInput">Input Harga Kustom</label>
+            <input type="text" id="predictionInput" placeholder="Masukkan harga per gram, dipisah koma (contoh: 2800000, 2810000, ...)" />
+            <span class="hint">Masukkan harga sesuai jumlah window size, dipisahkan dengan koma</span>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn--primary" id="btnPredict">
+              🔮 Prediksi
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Penjelasan Metode ===== -->
+    <section>
+      <div class="card">
+        <div class="card__header">
+          <div class="card__icon">📖</div>
+          <div>
+            <div class="card__title">Tentang Metode Adaline</div>
+            <div class="card__description">Adaptive Linear Neuron — Bernard Widrow &amp; Ted Hoff (1960)</div>
+          </div>
+        </div>
+
+        <div style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.8;">
+          <p>
+            <strong style="color: var(--text-primary);">Adaline (Adaptive Linear Neuron)</strong> adalah jaringan saraf tiruan
+            dengan satu lapisan yang menggunakan fungsi aktivasi linear. Berbeda dengan Perceptron yang menggunakan
+            fungsi step, Adaline meminimalkan error menggunakan aturan pembelajaran <em>Widrow-Hoff</em> (juga dikenal
+            sebagai <em>Least Mean Squares / LMS</em>).
+          </p>
+          <br />
+          <p><strong style="color: var(--text-primary);">Rumus pembaruan bobot:</strong></p>
+          <div style="background: var(--bg-input); padding: 16px; border-radius: 8px; margin: 12px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--gold-400);">
+            w<sub>i</sub>(t+1) = w<sub>i</sub>(t) + α × (target − net) × x<sub>i</sub><br />
+            bias(t+1) = bias(t) + α × (target − net)
+          </div>
+          <p>Dimana:</p>
+          <ul style="padding-left: 20px; margin-top: 8px;">
+            <li><strong>α</strong> — Learning rate (kecepatan belajar)</li>
+            <li><strong>target</strong> — Nilai output yang diharapkan</li>
+            <li><strong>net</strong> — Output jaringan (Σ w<sub>i</sub> × x<sub>i</sub> + bias)</li>
+            <li><strong>x<sub>i</sub></strong> — Input ke-i</li>
+          </ul>
+          <br />
+          <p>
+            Pada aplikasi ini, pendekatan <strong style="color: var(--text-primary);">sliding window</strong> digunakan untuk
+            memprediksi harga hari berikutnya berdasarkan harga N hari sebelumnya. Data dinormalisasi menggunakan
+            <em>Min-Max Scaling</em> agar proses konvergensi lebih baik.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="container">
+      <p>Prediksi Harga Logam Mulia — Metode Adaline (Adaptive Linear Neuron)</p>
+      <p style="margin-top: 4px;">Jaringan Saraf Tiruan &bull; Data Historis 2010–2026</p>
+    </div>
+  </footer>
+
+  <!-- Application Script -->
+  <script src="app.js"></script>
+
+</body>
+</html>
